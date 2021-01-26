@@ -148,3 +148,102 @@ function Get-C2rSupportedVersions {
     Write-Output $Table
 
 }#END: function Get-C2rSupportedVersions
+
+function Get-C2rChannelInfo {
+    <#
+    .SYNOPSIS
+    Gives the 'change' parameter value, GUID, and channel name for the given channel.
+    .DESCRIPTION
+    Returns the 'change' parameter value, GUID, and channel name required when changing the C2R update channel from the command line.
+    .EXAMPLE
+    $pValue = Get-C2rChannelInfo -ChannelName 'Monthly Enterprise Channel' | % ChangeParameterValue
+    icm ('"C:\Program Files\Common Files\Microsoft Shared\ClickToRun\OfficeC2RClient.exe" /changesetting Channel={0}' -f $pValue)
+    #>
+    [CmdletBinding(DefaultParameterSetName='byChannelName')]
+    param (
+        # Search by Channel Name (Default)
+        [Parameter(ParameterSetName='byChannelName')]
+        [ValidateSet(
+            'Current Channel',
+            'Current (Preview)',
+            'Semi-Annual Enterprise Channel',
+            'Semi-Annual Enterprise Channel (Preview)',
+            'Monthly Enterprise Channel',
+            'Beta Channel'
+        )]
+        [string]
+        $ChannelName,
+
+        # Search by GUID
+        [Parameter(ParameterSetName='byGuid')]
+        [ValidateSet(
+            '492350f6-3a01-4f97-b9c0-c7c6ddf67d60',
+            '64256afe-f5d9-4f86-8936-8840a6a4f5be',
+            '7ffbc6bf-bc32-4f92-8982-f9dd17fd3114',
+            'b8f9b850-328d-4355-9145-c59439a0c4cf',
+            '55336b82-a18d-4dd6-b5f6-9e5095c314a6',
+            '5440fd1f-7ecb-4221-8110-145efaa6372f',
+            'f2e724c1-748f-4b47-8fb8-8e0d210e9208',
+            '2e148de9-61c8-4051-b103-4af54baffbb4'
+        )]
+        [guid]
+        $Guid
+    )
+
+    # Define the table of objects in code
+    $srcTable = @(
+        [pscustomobject]@{
+            CdnUrlGuid           = '492350f6-3a01-4f97-b9c0-c7c6ddf67d60'
+            ChangeParameterValue = 'Current'
+            OfficialName         = 'Current Channel'
+        },
+        [pscustomobject]@{
+            CdnUrlGuid           = '64256afe-f5d9-4f86-8936-8840a6a4f5be'
+            ChangeParameterValue = 'FirstReleaseCurrent'
+            OfficialName         = 'Current (Preview)'
+        },
+        [pscustomobject]@{
+            CdnUrlGuid           = '7ffbc6bf-bc32-4f92-8982-f9dd17fd3114'
+            ChangeParameterValue = 'Broad'
+            OfficialName         = 'Semi-Annual Enterprise Channel'
+        },
+        [pscustomobject]@{
+            CdnUrlGuid           = 'b8f9b850-328d-4355-9145-c59439a0c4cf'
+            ChangeParameterValue = 'Targeted'
+            OfficialName         = 'Semi-Annual Enterprise Channel (Preview)'
+        },
+        [pscustomobject]@{
+            CdnUrlGuid           = '55336b82-a18d-4dd6-b5f6-9e5095c314a6'
+            ChangeParameterValue = 'MonthlyEnterpise'
+            OfficialName         = 'Monthly Enterprise Channel'
+        },
+        [pscustomobject]@{
+            CdnUrlGuid           = '5440fd1f-7ecb-4221-8110-145efaa6372f'
+            ChangeParameterValue = 'BetaChannel'
+            OfficialName         = 'Beta Channel'
+        },
+        [pscustomobject]@{
+            CdnUrlGuid           = 'f2e724c1-748f-4b47-8fb8-8e0d210e9208'
+            ChangeParameterValue = 'N/A'
+            OfficialName         = 'N/A'
+        },
+        [pscustomobject]@{
+            CdnUrlGuid           = '2e148de9-61c8-4051-b103-4af54baffbb4'
+            ChangeParameterValue = 'N/A'
+            OfficialName         = 'N/A'
+        }
+    )#END: $srcTable = @()
+
+    switch($PSCmdlet.ParameterSetName) {
+        'byChannelName' {            
+            $srcTable | Where-Object {$_.OfficalName -eq $ChannelName}
+        }
+        'byGuid'        {
+            $srcTable | Where-Object {$_.CdnUrlGuid -eq $Guid}
+        }
+        Default         {
+            $srcTable
+        }
+    }#END: switch($PSCmdlet.ParameterSetName) {}
+    
+}#END: function Get-C2rParameterValue
