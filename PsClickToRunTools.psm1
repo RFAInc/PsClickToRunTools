@@ -103,7 +103,7 @@ function Get-C2rSupportedVersions {
     $WebRequest = Invoke-WebRequest -Uri $Uri
     $Table = Get-WebRequestTable $WebRequest -TableNumber 0
 
-    # Determine the use case and set local variable for web request
+    # Determine the use case and convert data to object data types
     switch ($MajorVersion) {
         15 {
             foreach ($record in $Table) {
