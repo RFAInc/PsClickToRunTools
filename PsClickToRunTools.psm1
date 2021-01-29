@@ -133,9 +133,8 @@ function Get-C2rSupportedVersions {
 
             foreach ($record in $Table) {
                 # Channel is a string, OK
-                # Version is an int
-                $record.Version = $record.Version -as [int]
-                # Build is a part of a version number, but we can leave it as a string here
+                # Version is a number but sometimes is has a letter (20H2)
+                # Build is a PART of a version number, but we can leave it as a string here
                 # Release date is a datetime
                 $record.'Release date' = $record.'Release date' -as [datetime]
                 #Version supported until is a date but sometimes it's not. Leave as string for now
