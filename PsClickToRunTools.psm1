@@ -140,7 +140,41 @@ function Get-C2rSupportedVersions {
                 #Version supported until is a date but sometimes it's not. Leave as string for now
             }#END: foreach ($record in $Table)
 
+            # Calculate which item should have latest build
+            #  this will add a boolean property to Table
+            $grpChannelSupported = $Table |
+                Group-Object Channel
+            $Table = Foreach ($G in $grpChannelSupported) {
+                
+                # If multiple items for this channel, do some logic
+                $LatestBuildShouldBe = if (@($G.Group).Count -gt 1) {
+
+                    # Grab the builds and cast as versions, sort and select
+                    [string]$LastestBuild = $G.Group.Build |
+                        Foreach-Object {[version]$_} |
+                        Sort-Object -Descending |
+                        Select-Object -First 1
+
+                    # Choose the item with the latest build
+                    $G.Group | Where-Object {$_.Build -eq $LastestBuild} |
+                        Select-Object -Expand 'Build'
+                    
+                } else {
+
+                    # There is only 1, choose it.
+                    @($G.Group.Build)[0]
+
+                }#END: $LatestBuildShouldBe = if (@($G.Group).Count -gt 1)
+
+                # Tag the item with latest build
+                $G.Group | Select-Object *, @{Name='isLatestBuild';Exp={
+                    if ($_.Build -eq $LatestBuildShouldBe) {$true}else{$false}
+                }}
+
+            }#END: Foreach ($G in $grpChannelSupported)
+
         }#END: 16
+
     }#END: switch ($MajorVersion)
 
 
@@ -302,43 +336,7 @@ function Test-Ms365RequiresUpdate {
     begin {
         
         # Cache the current list of supported versions
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $C2rSupportedVersions = Get-C2rSupportedVersions
-
-        # Calculate which item should have latest build
-        #  this will add a boolean property to C2rSupportedVersions
-        $grpChannelSupported = $C2rSupportedVersions |
-            Group-Object Channel
-        $Supported = Foreach ($G in $grpChannelSupported) {
-            
-            # If multiple items for this channel, do some logic
-            $LatestBuildShouldBe = if (@($G.Group).Count -gt 1) {
-
-                # Grab the builds and cast as versions, sort and select
-                [string]$LastestBuild = $G.Group.Build |
-                    Foreach-Object {[version]$_} |
-                    Sort-Object -Descending |
-                    Select-Object -First 1
-
-                # Choose the item with the latest build
-                $G.Group | Where-Object {$_.Build -eq $LastestBuild} |
-                    Select-Object -Expand 'Build'
-                
-            } else {
-
-                # There is only 1, choose it.
-                @($G.Group.Build)[0]
-
-            }#END: $LatestBuildShouldBe = if (@($G.Group).Count -gt 1)
-
-            # Tag the item with latest build
-            $G.Group | Select-Object *, @{Name='isLatestBuild';Exp={
-                if ($_.Build -eq $LatestBuildShouldBe) {$true}else{$false}
-            }}
-
-        }#END: Foreach ($G in $grpChannelSupported)
-
-        
+        $C2rSupportedVersions = Get-C2rSupportedVersions -MajorVersion 16
 
         # Define an output object
         $OutputObject = New-Object System.Collections.ArrayList 
@@ -364,3 +362,9 @@ function Test-Ms365RequiresUpdate {
     }
 
 }#END: function Test-Ms365RequiresUpdate
+
+# Use available handshake protcols
+[Net.ServicePointManager]::SecurityProtocol = 
+[enum]::GetNames([Net.SecurityProtocolType]) | Foreach-Object {
+    [Net.SecurityProtocolType]::$_
+}
