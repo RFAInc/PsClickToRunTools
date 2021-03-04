@@ -303,6 +303,11 @@ function Test-Ms365RequiresUpdate {
         Test-Ms365RequiresUpdate -Channel 'Monthly Enterprise Channel' |
         Select -Expand RequiresUpdate
     False
+    .EXAMPLE
+    Get-InstalledSoftware -ComputerName PC1 |
+        Where {$_.Name -like 'Microsoft 365*'} |
+        Test-Ms365RequiresUpdate -Channel 'Monthly Enterprise Channel' |
+        Select -Expand RequiresUpdate
     False
     .NOTES
     v1.0 will support basic check of version vs channel name
