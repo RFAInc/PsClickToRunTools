@@ -298,9 +298,11 @@ function Test-Ms365RequiresUpdate {
     .DESCRIPTION
     Checks the version info against the current online list to see if the item requires an update.
     .EXAMPLE
-    Get-InstalledSoftware -ComputerName PC1,PC2 -Title 'Microsoft 365*' |
-        Select ComputerName, Software, Version |
-        Test-Ms365Version -Channel 'Monthly Enterprise Channel'
+    Get-SoftwareList -Company XYZ -IncludeAppName 'Microsoft 365*' |
+        Where {$_.ComputerName -eq 'PC1'} |
+        Test-Ms365RequiresUpdate -Channel 'Monthly Enterprise Channel' |
+        Select -Expand RequiresUpdate
+    False
     False
     .NOTES
     v1.0 will support basic check of version vs channel name
@@ -326,7 +328,7 @@ function Test-Ms365RequiresUpdate {
         [Parameter(Mandatory=$true,
             ValueFromPipeline=$true)]
         [ValidateScript({
-            $_.Version -is [version] -and
+            ([version]$_.Version) -is [version] -and
             $_.ComputerName -is [string]
         })]
         [PsCustomObject]
@@ -348,17 +350,32 @@ function Test-Ms365RequiresUpdate {
         Foreach ($obj in $InputObject) {
 
             # Find the item for comparison
-            
+            $LatestChannelBuild = $C2rSupportedVersions | Where-Object {
+                $_.isLatestBuild -and
+                $_.channel -eq $channel                
+            } | Select-Object -Expand 'Build'
+
+            # Does the computer have the latest version?
+            $objBuild = "$(([version]($obj.Version)).Build).$(([version]($obj.Version)).Revision)"
+            $isLatestVersion = [version]($LatestChannelBuild) -le ([version]$objBuild)
 
             # Create an output object with names, version, boolean
             $thisObj = [PSCustomObject]@{
                 ComputerName = $obj.ComputerName
+                Channel = $Channel
+                RequiresUpdate = !$isLatestVersion
+                BuildShouldBe = $LatestChannelBuild
+                BuildIs = $objBuild
+                isLatestVersion = $isLatestVersion
+                ComputerId = $obj.ComputerId
             }
+
+            [void]($OutputObject.Add($thisObj))
         }
     }
     
     end {
-        
+        Write-Output $OutputObject
     }
 
 }#END: function Test-Ms365RequiresUpdate
