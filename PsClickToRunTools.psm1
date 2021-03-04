@@ -255,4 +255,110 @@ function Get-C2rChannelInfo {
 
     }#END: switch($PSCmdlet.ParameterSetName) {}
     
-}#END: function Get-C2rParameterValue
+}#END: function Get-C2rChannelInfo
+
+function Test-Ms365RequiresUpdate {
+    <#
+    .SYNOPSIS
+    Checks the version info to see if the PC requires an update.
+    .DESCRIPTION
+    Checks the version info against the current online list to see if the item requires an update.
+    .EXAMPLE
+    Get-InstalledSoftware -ComputerName PC1,PC2 -Title 'Microsoft 365*' |
+        Select ComputerName, Software, Version |
+        Test-Ms365Version -Channel 'Monthly Enterprise Channel'
+    False
+    .NOTES
+    v1.0 will support basic check of version vs channel name
+    Later versions will include 
+    - check vs channel guid
+    - Option to pass if version is not latest but is still supported.
+    #>
+    [CmdletBinding(DefaultParameterSetName='byChannelName')]
+    param (
+        # Given Channel NAME to check the version against
+        [Parameter(Mandatory=$true,
+            ParameterSetName='byChannelName')]
+        [string]
+        $Channel,
+
+        # Given Channel GUID to check the version against
+        [Parameter(Mandatory=$true,
+            ParameterSetName='byUniqueID')]
+        [guid]
+        $Guid,
+
+        # Object containing Version and ComputerName from the PC to test. Must not include non-MS365 software items.
+        [Parameter(Mandatory=$true,
+            ValueFromPipeline=$true)]
+        [ValidateScript({
+            $_.Version -is [version] -and
+            $_.ComputerName -is [string]
+        })]
+        [PsCustomObject]
+        $InputObject
+    )
+    
+    begin {
+        
+        # Cache the current list of supported versions
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $Supported = Get-C2rSupportedVersions
+
+        # Calculate the version should be if latest
+        $grpChannelSupported = $Supported |
+            Group-Object Channel
+        Foreach ($G in $grpChannelSupported) {
+            
+            # If multiple items for this channel, do some logic
+            if (@($G.Group).Count -gt 1) {
+
+                # Grab the 1st 2 chars from the version string
+                #  and cast as int to find the highest
+                [string]$LargestYearDigits = $G.Group.Version |
+                    % { [int]($_.Substring(0,2)) } |
+                    Sort-Object -Descending |
+                    Select -First 1
+
+                # Use last result to Qualify each version string
+                $QualifiedItems = $G.Group |
+                    Where-Object {$_.Version -match "$($LargestYearDigits).\d"}
+
+                # If multiple qualified, process the 2nd
+                if (@($QualifiedItems).Count -gt 1) {
+
+              
+                }#END: if (@($QualifiedItems).Count -gt 1)
+
+
+
+            }#END: if (@($G.Group).Count -gt 1)
+
+        }#END: Foreach ($G in $grpChannelSupported)
+
+        $LatestVersionShouldBe 
+
+        # Define an output object
+        $OutputObject = New-Object System.Collections.ArrayList 
+
+    }
+    
+    process {
+        
+        Foreach ($obj in $InputObject) {
+
+            # Find the item for comparison
+            
+
+            # Create an output object with names, version, boolean
+            $thisObj = [PSCustomObject]@{
+                ComputerName = $obj.ComputerName
+            }
+        }
+    }
+    
+    end {
+        
+    }
+
+}#END: function Test-Ms365RequiresUpdate
