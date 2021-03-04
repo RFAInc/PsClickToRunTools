@@ -303,40 +303,42 @@ function Test-Ms365RequiresUpdate {
         
         # Cache the current list of supported versions
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-        $Supported = Get-C2rSupportedVersions
+        $C2rSupportedVersions = Get-C2rSupportedVersions
 
-        # Calculate the version should be if latest
-        $grpChannelSupported = $Supported |
+        # Calculate which item should have latest build
+        #  this will add a boolean property to C2rSupportedVersions
+        $grpChannelSupported = $C2rSupportedVersions |
             Group-Object Channel
-        Foreach ($G in $grpChannelSupported) {
+        $Supported = Foreach ($G in $grpChannelSupported) {
             
             # If multiple items for this channel, do some logic
-            if (@($G.Group).Count -gt 1) {
+            $LatestBuildShouldBe = if (@($G.Group).Count -gt 1) {
 
-                # Grab the 1st 2 chars from the version string
-                #  and cast as int to find the highest
-                [string]$LargestYearDigits = $G.Group.Version |
-                    % { [int]($_.Substring(0,2)) } |
+                # Grab the builds and cast as versions, sort and select
+                [string]$LastestBuild = $G.Group.Build |
+                    Foreach-Object {[version]$_} |
                     Sort-Object -Descending |
-                    Select -First 1
+                    Select-Object -First 1
 
-                # Use last result to Qualify each version string
-                $QualifiedItems = $G.Group |
-                    Where-Object {$_.Version -match "$($LargestYearDigits).\d"}
+                # Choose the item with the latest build
+                $G.Group | Where-Object {$_.Build -eq $LastestBuild} |
+                    Select-Object -Expand 'Build'
+                
+            } else {
 
-                # If multiple qualified, process the 2nd
-                if (@($QualifiedItems).Count -gt 1) {
+                # There is only 1, choose it.
+                @($G.Group.Build)[0]
 
-              
-                }#END: if (@($QualifiedItems).Count -gt 1)
+            }#END: $LatestBuildShouldBe = if (@($G.Group).Count -gt 1)
 
-
-
-            }#END: if (@($G.Group).Count -gt 1)
+            # Tag the item with latest build
+            $G.Group | Select-Object *, @{Name='isLatestBuild';Exp={
+                if ($_.Build -eq $LatestBuildShouldBe) {$true}else{$false}
+            }}
 
         }#END: Foreach ($G in $grpChannelSupported)
 
-        $LatestVersionShouldBe 
+        
 
         # Define an output object
         $OutputObject = New-Object System.Collections.ArrayList 
