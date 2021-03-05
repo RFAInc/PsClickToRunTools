@@ -337,14 +337,17 @@ function Test-Ms365RequiresUpdate {
             $_.ComputerName -is [string]
         })]
         [PsCustomObject]
-        $InputObject
+        $InputObject,
+
+        # Chart of supported MS365 versions
+        [Parameter()]
+        [ValidateNotNull()]
+        [pscustomobject]
+        $C2rSupportedVersions = (Get-C2rSupportedVersions -MajorVersion 16)
     )
     
     begin {
         
-        # Cache the current list of supported versions
-        $C2rSupportedVersions = Get-C2rSupportedVersions -MajorVersion 16
-
         # Define an output object
         $OutputObject = New-Object System.Collections.ArrayList 
 
