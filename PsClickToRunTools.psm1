@@ -320,6 +320,14 @@ function Test-Ms365RequiresUpdate {
         # Given Channel NAME to check the version against
         [Parameter(Mandatory=$true,
             ParameterSetName='byChannelName')]
+        [ValidateSet(
+            'Current Channel',
+            'Current (Preview)',
+            'Semi-Annual Enterprise Channel',
+            'Semi-Annual Enterprise Channel (Preview)',
+            'Monthly Enterprise Channel',
+            'Beta Channel',
+        )]
         [string]
         $Channel,
 
