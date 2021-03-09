@@ -326,7 +326,7 @@ function Test-Ms365RequiresUpdate {
             'Semi-Annual Enterprise Channel',
             'Semi-Annual Enterprise Channel (Preview)',
             'Monthly Enterprise Channel',
-            'Beta Channel',
+            'Beta Channel'
         )]
         [string]
         $Channel,
