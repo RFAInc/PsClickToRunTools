@@ -72,111 +72,174 @@ function Get-WebRequestTable {
 }#END: function Get-WebRequestTable
 
 function Get-C2rSupportedVersions {
-    [CmdletBinding()]
+    
+    [CmdletBinding(DefaultParameterSetName='CacheExpires')]
+    
     param (
         # Major version (15 is ProPlus 2013, 16 is MS 365)
-        [Parameter(Position=0)]
+        [Parameter(Position=0,ParameterSetName='CacheExpires')]
+        [Parameter(Position=0,ParameterSetName='SkipCache')]
+        [Parameter(Position=0,ParameterSetName='ForceCache')]
         [ValidateNotNull()]
         [ValidateSet(15,16)]
         [int]
-        $MajorVersion=16
+        $MajorVersion=16,
+
+        # Time in Days to wait before refreshing cache before next lookup
+        [Parameter(ParameterSetName='CacheExpires')]
+        [int]
+        $CacheExpires = 90,
+
+        # Force fresh lookup from web
+        [Parameter(ParameterSetName='SkipCache')]
+        [switch]
+        $SkipCache,
+
+        # Prevent fresh lookup from web
+        [Parameter(ParameterSetName='ForceCache')]
+        [switch]
+        $ForceCache
     )
+    
+
+    # Determine if we should force or check cache file
+    $PerformWebLookup = if ($ForceCache) {
+
+        # Always go to cache file
+        $false
+
+    } elseif ($SkipCache) {
+        
+        # Always go to web check
+        $true
+
+    } else {
+        
+        # Perform cache file analysis by modified Date
+        $CacheDate = (Get-TableXmlInCacheItem).LastWriteTime
+        $Now = Get-Date
+        
+        if ($Now.AddDays(-$CacheExpires) -ge $CacheDate) {
             
-    # URL for the 2013/ProPlus online chart we will scrape
-    $Uri15page = 'https://docs.microsoft.com/en-us/officeupdates/update-history-office-2013'
-    # this is going to be legacy at some point, but we will support it on "day 2".
+            # Update the cache file
+            $true
 
-    # URL for the MS 365 online chart we will scrape
-    $Uri16page = 'https://docs.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date'
+        } else {
 
-    # Determine the use case and set local variable for web request
-    switch ($MajorVersion) {
-        15 {
-            $Uri = $Uri15page
+            # Use the cache file
+            $false
+
         }
-        16 {
-            $Uri = $Uri16page
+
+    }#END: $PerformWebLookup = if ($ForceCache)
+
+
+    if ($PerformWebLookup) {
+        
+        # URL for the 2013/ProPlus online chart we will scrape
+        $Uri15page = 'https://docs.microsoft.com/en-us/officeupdates/update-history-office-2013'
+        # this is going to be legacy at some point, but we will support it on "day 2".
+
+        # URL for the MS 365 online chart we will scrape
+        $Uri16page = 'https://docs.microsoft.com/en-us/officeupdates/update-history-microsoft365-apps-by-date'
+
+        # Determine the use case and set local variable for web request
+        switch ($MajorVersion) {
+            15 {
+                $Uri = $Uri15page
+            }
+            16 {
+                $Uri = $Uri16page
+            }
         }
-    }
 
-    # Get Web Request
-    $WebRequest = Invoke-WebRequest -Uri $Uri
-    $Table = Get-WebRequestTable $WebRequest -TableNumber 0
+        # Get Web Request
+        $WebRequest = Invoke-WebRequest -Uri $Uri
+        $Table = Get-WebRequestTable $WebRequest -TableNumber 0
 
-    # Determine the use case and convert data to object data types
-    switch ($MajorVersion) {
-        15 {
-            foreach ($record in $Table) {
+        # Determine the use case and convert data to object data types
+        switch ($MajorVersion) {
+            15 {
+                foreach ($record in $Table) {
 
-                # Release year is an int
-                #   the year is sometime null, so we infer the previous value
-                $year = if ($record.'Release year') {$record.'Release year' -as [int]} else {$year -as [int]}
-                $record.'Release year' = $year
-                # Release date is a partial date string. Leave as is for now
-                # Version number is a version
-                $record.'Version number' = $record.'Version number' -as [version]
-                # More information is a link, leave as string but remove the space
-                $record.'More information' = $record.'More information' -replace '\s'
-                
-                # Create a new property as a datetime based off two previous fields
-                #   the date is a string we can split into a month and a day
-                $tempArr = $record.'Release date' -split '\s'
-                $month = $tempArr[0]
-                $day = $tempArr[1]
-                #  We can parse the string with its known format, then add the new member
-                $ReleasedOn = [datetime]::parseexact("$($month)-$($day)-$($year)", 'MMMM-d-yyyy', $null)
-                $record | Add-Member -MemberType NoteProperty -Name ReleasedOn -Value $ReleasedOn
-
-            }#END: foreach ($record in $Table)
-        }#END: 15
-        16 {
-
-            foreach ($record in $Table) {
-                # Channel is a string, OK
-                # Version is a number but sometimes is has a letter (20H2)
-                # Build is a PART of a version number, but we can leave it as a string here
-                # Release date is a datetime
-                $record.'Release date' = $record.'Release date' -as [datetime]
-                #Version supported until is a date but sometimes it's not. Leave as string for now
-            }#END: foreach ($record in $Table)
-
-            # Calculate which item should have latest build
-            #  this will add a boolean property to Table
-            $grpChannelSupported = $Table |
-                Group-Object Channel
-            $Table = Foreach ($G in $grpChannelSupported) {
-                
-                # If multiple items for this channel, do some logic
-                $LatestBuildShouldBe = if (@($G.Group).Count -gt 1) {
-
-                    # Grab the builds and cast as versions, sort and select
-                    [string]$LastestBuild = $G.Group.Build |
-                        Foreach-Object {[version]$_} |
-                        Sort-Object -Descending |
-                        Select-Object -First 1
-
-                    # Choose the item with the latest build
-                    $G.Group | Where-Object {$_.Build -eq $LastestBuild} |
-                        Select-Object -Expand 'Build'
+                    # Release year is an int
+                    #   the year is sometime null, so we infer the previous value
+                    $year = if ($record.'Release year') {$record.'Release year' -as [int]} else {$year -as [int]}
+                    $record.'Release year' = $year
+                    # Release date is a partial date string. Leave as is for now
+                    # Version number is a version
+                    $record.'Version number' = $record.'Version number' -as [version]
+                    # More information is a link, leave as string but remove the space
+                    $record.'More information' = $record.'More information' -replace '\s'
                     
-                } else {
+                    # Create a new property as a datetime based off two previous fields
+                    #   the date is a string we can split into a month and a day
+                    $tempArr = $record.'Release date' -split '\s'
+                    $month = $tempArr[0]
+                    $day = $tempArr[1]
+                    #  We can parse the string with its known format, then add the new member
+                    $ReleasedOn = [datetime]::parseexact("$($month)-$($day)-$($year)", 'MMMM-d-yyyy', $null)
+                    $record | Add-Member -MemberType NoteProperty -Name ReleasedOn -Value $ReleasedOn
 
-                    # There is only 1, choose it.
-                    @($G.Group.Build)[0]
+                }#END: foreach ($record in $Table)
+            }#END: 15
+            16 {
 
-                }#END: $LatestBuildShouldBe = if (@($G.Group).Count -gt 1)
+                foreach ($record in $Table) {
+                    # Channel is a string, OK
+                    # Version is a number but sometimes is has a letter (20H2)
+                    # Build is a PART of a version number, but we can leave it as a string here
+                    # Release date is a datetime
+                    $record.'Release date' = $record.'Release date' -as [datetime]
+                    #Version supported until is a date but sometimes it's not. Leave as string for now
+                }#END: foreach ($record in $Table)
 
-                # Tag the item with latest build
-                $G.Group | Select-Object *, @{Name='isLatestBuild';Exp={
-                    if ($_.Build -eq $LatestBuildShouldBe) {$true}else{$false}
-                }}
+                # Calculate which item should have latest build
+                #  this will add a boolean property to Table
+                $grpChannelSupported = $Table |
+                    Group-Object Channel
+                $Table = Foreach ($G in $grpChannelSupported) {
+                    
+                    # If multiple items for this channel, do some logic
+                    $LatestBuildShouldBe = if (@($G.Group).Count -gt 1) {
 
-            }#END: Foreach ($G in $grpChannelSupported)
+                        # Grab the builds and cast as versions, sort and select
+                        [string]$LastestBuild = $G.Group.Build |
+                            Foreach-Object {[version]$_} |
+                            Sort-Object -Descending |
+                            Select-Object -First 1
 
-        }#END: 16
+                        # Choose the item with the latest build
+                        $G.Group | Where-Object {$_.Build -eq $LastestBuild} |
+                            Select-Object -Expand 'Build'
+                        
+                    } else {
 
-    }#END: switch ($MajorVersion)
+                        # There is only 1, choose it.
+                        @($G.Group.Build)[0]
 
+                    }#END: $LatestBuildShouldBe = if (@($G.Group).Count -gt 1)
+
+                    # Tag the item with latest build
+                    $G.Group | Select-Object *, @{Name='isLatestBuild';Exp={
+                        if ($_.Build -eq $LatestBuildShouldBe) {$true}else{$false}
+                    }}
+
+                }#END: Foreach ($G in $grpChannelSupported)
+
+            }#END: 16
+
+        }#END: switch ($MajorVersion)
+
+        # Export the table to cache
+        Save-TableAsXmlInCache -Table $Table
+
+    } else {
+
+        # Pull table from the cache
+        $Table = Import-TableXmlInCache
+
+    }#END: if ($PerformWebLookup)
 
     Write-Output $Table
 
@@ -396,8 +459,78 @@ function Test-Ms365RequiresUpdate {
 
 }#END: function Test-Ms365RequiresUpdate
 
-# Use available handshake protcols
+function Save-TableAsXmlInCache {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory=$true)]
+        [pscustomobject]
+        $Table
+    )
+
+    $CacheDir = "$PsScriptRoot\cache"
+    if ( -not (Test-Path $CacheDir)) {
+        New-Item -Directory $CacheDir -Force
+    }
+
+    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    $Table | Export-CliXml -Path $CachedXmlPath
+
+}#END: function Save-TableAsXmlInCache
+
+
+function Test-TableXmlInCache {
+
+    $CacheDir = "$PsScriptRoot\cache"
+    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    if (Test-Path $CachedXmlPath) {
+        $true
+    } else {
+        $false
+    }
+
+}#END: function Test-TableXmlInCache
+
+function Get-TableXmlInCacheItem {
+
+    $CacheDir = "$PsScriptRoot\cache"
+    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    if (Test-TableXmlInCache) {
+        Get-Item $CachedXmlPath
+    } else {
+        throw "Cache file not found!"
+    }
+
+}#END: function Get-TableXmlInCacheItem
+
+
+function Import-TableXmlInCache {
+
+    $CacheDir = "$PsScriptRoot\cache"
+    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    if (Test-TableXmlInCache) {
+        Import-CliXml -Path $CachedXmlPath
+    } else {
+        throw "Cache file not found!"
+    }
+
+}#END: function Import-TableXmlInCache
+
+
+
+# Use available handshake protocols
 [Net.ServicePointManager]::SecurityProtocol = 
 [enum]::GetNames([Net.SecurityProtocolType]) | Foreach-Object {
     [Net.SecurityProtocolType]::$_
 }
+
+
+<#
+# Selenium might work better
+$dllPath = "$($PsScriptRoot)\lib\WebDriver.dll"
+$myPaths = $env:Path -split ';'
+if ($myPaths -notcontains $dllPath) {
+    $env:Path += ";$dllPath"
+}
+Add-Type -Path $dllPath
+#>
+
