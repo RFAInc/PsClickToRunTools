@@ -5,6 +5,11 @@ Toolset for working with Office Click-to-Run updates
 
 ## Audit your AD
 ```
+# Use available handshake protcols
+[Net.ServicePointManager]::SecurityProtocol = 
+[enum]::GetNames([Net.SecurityProtocolType]) | Foreach-Object {
+    [Net.SecurityProtocolType]::$_
+}
 # Import standard modules
 ipmo ActiveDirectory
 # Import my modules
