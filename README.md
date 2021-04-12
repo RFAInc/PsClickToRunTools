@@ -32,5 +32,5 @@ $Report | Export-CSV $env:temp\ms365-version-qa.csv -notype
 [Net.ServicePointManager]::SecurityProtocol = [enum]::GetNames([Net.SecurityProtocolType]) | Foreach-Object {[Net.SecurityProtocolType]::$_}
 (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/RFAInc/PsClickToRunTools/main/PsClickToRunTools.psm1')|iex;
 # Export list
-Get-C2rSupportedVersions | Save-TableAsXmlInCache
+Save-TableAsXmlInCache (Get-C2rSupportedVersions -SkipCache)
 ```
