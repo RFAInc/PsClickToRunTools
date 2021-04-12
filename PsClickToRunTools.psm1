@@ -487,8 +487,7 @@ function Get-CachedXmlPath {
 function Save-TableAsXmlInCache {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true,
-            ValueFromPipeline=$true)]
+        [Parameter(Mandatory=$true,Position=0)]
         [pscustomobject]
         $Table
     )
