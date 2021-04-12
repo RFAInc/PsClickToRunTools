@@ -25,3 +25,12 @@ $Report=Get-InstalledSoftware -ComputerName $PCs |
 # Export your data however you want, ex: CSV
 $Report | Export-CSV $env:temp\ms365-version-qa.csv -notype
 ```
+
+## Update the Cache File
+```
+# Use available handshake protcols
+[Net.ServicePointManager]::SecurityProtocol = [enum]::GetNames([Net.SecurityProtocolType]) | Foreach-Object {[Net.SecurityProtocolType]::$_}
+(New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/RFAInc/PsClickToRunTools/main/PsClickToRunTools.psm1')|iex;
+# Export list
+Get-C2rSupportedVersions | Save-TableAsXmlInCache
+```
