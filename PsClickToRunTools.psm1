@@ -113,7 +113,7 @@ function Get-C2rSupportedVersions {
         # Always go to web check
         $true
 
-    } else {
+    } elseif (Test-TableXmlInCache) {
         
         # Perform cache file analysis by modified Date
         $CacheDate = (Get-TableXmlInCacheItem).LastWriteTime
@@ -130,6 +130,11 @@ function Get-C2rSupportedVersions {
             $false
 
         }
+
+    } else {
+
+        # No cache found, perform lookup
+        $true
 
     }#END: $PerformWebLookup = if ($ForceCache)
 
@@ -459,6 +464,17 @@ function Test-Ms365RequiresUpdate {
 
 }#END: function Test-Ms365RequiresUpdate
 
+function Get-CacheDir {
+    $CacheDir = Join-Path $PsScriptRoot "cache"
+    $CacheDir
+}
+
+function Get-CachedXmlPath {
+    $CacheDir = Get-CacheDir
+    $CachedXmlPath =  Join-Path $CacheDir "c2r-channels.xml"
+    $CachedXmlPath
+}
+
 function Save-TableAsXmlInCache {
     [CmdletBinding()]
     param (
@@ -467,12 +483,12 @@ function Save-TableAsXmlInCache {
         $Table
     )
 
-    $CacheDir = "$PsScriptRoot\cache"
+    $CacheDir = Get-CacheDir
     if ( -not (Test-Path $CacheDir)) {
         New-Item -Directory $CacheDir -Force
     }
 
-    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    $CachedXmlPath = Get-CachedXmlPath
     $Table | Export-CliXml -Path $CachedXmlPath
 
 }#END: function Save-TableAsXmlInCache
@@ -480,8 +496,7 @@ function Save-TableAsXmlInCache {
 
 function Test-TableXmlInCache {
 
-    $CacheDir = "$PsScriptRoot\cache"
-    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    $CachedXmlPath = Get-CachedXmlPath
     if (Test-Path $CachedXmlPath) {
         $true
     } else {
@@ -492,8 +507,7 @@ function Test-TableXmlInCache {
 
 function Get-TableXmlInCacheItem {
 
-    $CacheDir = "$PsScriptRoot\cache"
-    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    $CachedXmlPath = Get-CachedXmlPath
     if (Test-TableXmlInCache) {
         Get-Item $CachedXmlPath
     } else {
@@ -505,8 +519,7 @@ function Get-TableXmlInCacheItem {
 
 function Import-TableXmlInCache {
 
-    $CacheDir = "$PsScriptRoot\cache"
-    $CachedXmlPath = "$CacheDir\c2r-channels.xml"
+    $CachedXmlPath = Get-CachedXmlPath
     if (Test-TableXmlInCache) {
         Import-CliXml -Path $CachedXmlPath
     } else {
