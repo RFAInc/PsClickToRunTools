@@ -465,9 +465,18 @@ function Test-Ms365RequiresUpdate {
 }#END: function Test-Ms365RequiresUpdate
 
 function Get-CacheDir {
-    $CacheDir = Join-Path $PsScriptRoot "cache"
+
+    $CacheDir = if ($PsScriptRoot) {
+        Join-Path $PsScriptRoot "cache"
+    } else {
+        $module = $env:PSModulePath -split ';' |
+        Where-Object {$_ -like '*users*'} | 
+        Select-Object -First 1
+        Join-Path $module "PsClickToRunTools\cache"
+    }
     $CacheDir
-}
+
+}#END: function Get-CacheDir
 
 function Get-CachedXmlPath {
     $CacheDir = Get-CacheDir
@@ -478,14 +487,15 @@ function Get-CachedXmlPath {
 function Save-TableAsXmlInCache {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory=$true,
+            ValueFromPipeline=$true)]
         [pscustomobject]
         $Table
     )
 
     $CacheDir = Get-CacheDir
     if ( -not (Test-Path $CacheDir)) {
-        New-Item -Directory $CacheDir -Force
+        New-Item $CacheDir -ItemType Directory -Force
     }
 
     $CachedXmlPath = Get-CachedXmlPath
