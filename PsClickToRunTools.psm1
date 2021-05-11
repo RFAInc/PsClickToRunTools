@@ -88,7 +88,7 @@ function Get-C2rSupportedVersions {
         # Time in Days to wait before refreshing cache before next lookup
         [Parameter(ParameterSetName='CacheExpires')]
         [int]
-        $CacheExpires = 90,
+        $CacheExpires = 7,
 
         # Force fresh lookup from web
         [Parameter(ParameterSetName='SkipCache')]
